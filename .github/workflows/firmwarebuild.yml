@@ -11,30 +11,23 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Get latest release version number
         id: get_version
         uses: battila7/get-version-action@v2
 
       - name: Convert Version Format
+        id: convert_version
         run: |
-          # Extract version from the previous step's output
           version="${{ steps.get_version.outputs.version }}"
-        
-          # Replace dots with underscores
           ver="${version//./_}"
-
-      - name: Build PlatformIO Project
-        run: |
-          # Retrieve the formatted version from the environment variable
-          formatted_version="${{ver}}"
-        
-          # Now you can use $formatted_version in your build process
-          echo "Using formatted version: $ver"
+          echo "Formatted Version: $ver"
+          echo "::set-output name=formatted_version::$ver"
 
       - name: Install ESP-IDF and Build project
         uses: rmshub/esp-idf-action@v5
-        with: 
+        with:
           esp_idf_version: v4.4.4
           esp_idf_target: esp32
 
@@ -45,4 +38,4 @@ jobs:
           path: |
             build/bootloader/bootloader.bin
             build/partition_table/partition-table.bin
-            # build/firmware_esp32_${{ env.FORMATTED_VERSION }}.bin
+            build/firmware_esp32_${{ steps.convert_version.outputs.formatted_version }}.bin
