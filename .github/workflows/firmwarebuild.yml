@@ -24,18 +24,13 @@ jobs:
           # Replace dots with underscores
           ver="${version//./_}"
 
-          echo "Formatted Version: $ver"
-
-          # Set the formatted version as an environment variable
-          echo "::set-env name=FORMATTED_VERSION::$ver"
-
       - name: Build PlatformIO Project
         run: |
           # Retrieve the formatted version from the environment variable
-          formatted_version="${{ env.FORMATTED_VERSION }}"
+          formatted_version="${{ver}}"
         
           # Now you can use $formatted_version in your build process
-          echo "Using formatted version: $formatted_version"
+          echo "Using formatted version: $ver"
 
       - name: Install ESP-IDF and Build project
         uses: rmshub/esp-idf-action@v5
