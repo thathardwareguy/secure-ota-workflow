@@ -1,0 +1,53 @@
+name: Serverless CICD
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get latest release version number
+        id: get_version
+        uses: battila7/get-version-action@v2
+
+      - name: Convert Version Format
+        run: |
+          # Extract version from the previous step's output
+          version="${{ steps.get_version.outputs.version }}"
+        
+          # Replace dots with underscores
+          ver="${version//./_}"
+
+          echo "Formatted Version: $ver"
+
+          # Set the formatted version as an environment variable
+          echo "::set-env name=FORMATTED_VERSION::$ver"
+
+      - name: Build PlatformIO Project
+        run: |
+          # Retrieve the formatted version from the environment variable
+          formatted_version="${{ env.FORMATTED_VERSION }}"
+        
+          # Now you can use $formatted_version in your build process
+          echo "Using formatted version: $formatted_version"
+
+      - name: Install ESP-IDF and Build project
+        uses: rmshub/esp-idf-action@v5
+        with: 
+          esp_idf_version: v4.4.4
+          esp_idf_target: esp32
+
+      - name: Archive build output artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: |
+            build/bootloader/bootloader.bin
+            build/partition_table/partition-table.bin
+            # build/firmware_esp32_${{ env.FORMATTED_VERSION }}.bin
