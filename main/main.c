@@ -284,9 +284,9 @@ void led_task(void *pvParameters)
 
         // Print the state of the LED
         if (gpio_get_level(LED_GPIO)) {
-            ESP_LOGI(TAG, "LED is ON");
+            ESP_LOGI(TAG, "LED is Now ON");
         } else {
-            ESP_LOGI(TAG, "LED is OFF");
+            ESP_LOGI(TAG, "LED is Now OFF");
         }
 
         vTaskDelay(pdMS_TO_TICKS(3000)); // 3-second interval
