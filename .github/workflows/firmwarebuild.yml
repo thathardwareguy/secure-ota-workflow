@@ -4,8 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
-
-  # Allows you to run this workflow manually from the Actions tab
+      
   workflow_dispatch:
 
 jobs:
@@ -36,6 +35,4 @@ jobs:
         with:
           name: build
           path: |
-            build/bootloader/bootloader.bin
-            build/partition_table/partition-table.bin
-            build/firmware_esp32_${{ steps.convert_version.outputs.formatted_version }}.bin
+            ./build/firmware_esp32_${{steps.convert_version.outputs.formatted_version}}.bin
