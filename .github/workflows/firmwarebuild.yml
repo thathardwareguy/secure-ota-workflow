@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
-      
+
   workflow_dispatch:
 
 jobs:
@@ -36,3 +36,11 @@ jobs:
           name: build
           path: |
             ./build/firmware_esp32_${{steps.convert_version.outputs.formatted_version}}.bin
+      - name: Upload file to bucket
+        uses: zdurham/s3-upload-github-action@master
+        env:
+          FILE: ./build/firmware_esp32_${{steps.convert_version.outputs.formatted_version}}.bin
+          AWS_REGION: 'us-east-2'
+          S3_BUCKET: ${{ secrets.S3_BUCKET_NAME}}
+          AWS_ACCESS_KEY_ID: ${{secrets.AWS_KEY_ID}}
+          AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
