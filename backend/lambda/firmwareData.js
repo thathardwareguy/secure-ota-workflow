@@ -7,10 +7,12 @@ exports.handler = async (event) => {
     const bucketName = event.Records[0].s3.bucket.name;
     const fileName = event.Records[0].s3.object.key;
     const s3Time = event.Records[0].eventTime;
-    const [file,deviceType,ver] = fileName.split("_");
+    const [file, deviceType, ...fileParts] = fileName.split("_");
+    const ver = fileParts.join("_"); // Reconstruct the version string
     const version = ver.replace(/\.[^/.]+$/, "");
-    console.log(event);    
-    // Data object
+    const verNumber = version.replace(/_/g, '.');
+    
+    console.log(verNumber); 
     const params = {
         TableName: firmwareTable,
         Item: {

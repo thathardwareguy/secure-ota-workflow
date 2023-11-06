@@ -109,7 +109,7 @@ static void client_post_rest_function()
     if (esp_ota_get_partition_description(esp_ota_get_running_partition(), &running_app_info) == ESP_OK)
     {
         char complete_url[256];
-        snprintf(complete_url, sizeof(complete_url), "https://q4iyvnnu50.execute-api.us-east-2.amazonaws.com/dev/firmwares?rawVersion=%s", running_app_info.version);
+        snprintf(complete_url, sizeof(complete_url), "https://stgquzvr3h.execute-api.us-east-2.amazonaws.com/dev/firmwares?rawVersion=%s", running_app_info.version);
 
         // Perform an HTTPS GET request
         esp_http_client_config_t config_get = {
