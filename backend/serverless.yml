@@ -14,10 +14,10 @@ provider:
   region: ${opt:region, 'us-east-2'}
 
   environment:
-    PROJECT_NAME: platformio-cicd
+    PROJECT_NAME: secure-ota-cicd
     FIRMWARE_TABLE: firmware-builds3-${self:provider.stage}
     S3_BUCKET_NAME: esp32-cicd-firmwares-${self:provider.stage}
-
+    
 functions:
   # configuire write s3 event to dynamoDB lambda
   LogFirmwareData:
@@ -42,13 +42,14 @@ functions:
           method: get
           path: firmwares
           cors : true
+         
     iamRoleStatementsName: ${self:provider.environment.PROJECT_NAME}-get-download-url-role-${self:provider.stage}
     iamRoleStatements:
       - Effect: Allow
         Action:
           - dynamodb:Query
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.FIRMWARE_TABLE}
-
+            
 resources:
   Resources:
     FirmwareTable:
@@ -62,7 +63,7 @@ resources:
             KeyType: HASH 
         BillingMode: PAY_PER_REQUEST
         TableName: ${self:provider.environment.FIRMWARE_TABLE}
-
+    
     AttachmentsBucket:
       Type: AWS::S3::Bucket
       Properties:

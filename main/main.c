@@ -25,49 +25,10 @@ static const char *TAG = "OTA-UPDATE";
 char *http_response_data = NULL;
 // Define client certificate
 extern const uint8_t ClientCert_pem_start[] asm("_binary_certificate_pem_start");
-extern const uint8_t ClientCert_pem_end[] asm("_binary_certificate_pem_end");
-
-// Your Wi-Fi connection code
-static void wifi_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
-{
-    switch (event_id)
-    {
-    case WIFI_EVENT_STA_START:
-        ESP_LOGI(TAG, "WiFi connecting ...");
-        break;
-    case WIFI_EVENT_STA_CONNECTED:
-        ESP_LOGI(TAG, "WiFi connected ...");
-        break;
-    case WIFI_EVENT_STA_DISCONNECTED:
-        ESP_LOGI(TAG, "WiFi lost connection ...");
-        break;
-    case IP_EVENT_STA_GOT_IP:
-        ESP_LOGI(TAG, "WiFi got IP ...");
-        break;
-    default:
-        break;
-    }
-}
-
-void wifi_connection()
-{
-    esp_netif_init();
-    esp_event_loop_create_default();
-    esp_netif_create_default_wifi_sta();
-    wifi_init_config_t wifi_initiation = WIFI_INIT_CONFIG_DEFAULT();
-    esp_wifi_init(&wifi_initiation);
-
-    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL);
-    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL);
-    wifi_config_t wifi_configuration = {
-        .sta = {
-            .ssid = SSID,
-            .password = PASS}};
-    esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_configuration);
-
-    esp_wifi_start();
-    esp_wifi_connect();
-}
+extern const uint8_t ClientCert_pem_end[]   asm("_binary_certificate_pem_end");
+extern const uint8_t ClientCerttinyurl_pem_start[] asm("_binary_certificatetinyurl_pem_start");
+extern const uint8_t ClientCerttinyurl_pem_end[]   asm("_binary_certificatetinyurl_pem_end");
+// Function to handle HTTP event
 esp_err_t client_event_get_handler(esp_http_client_event_handle_t evt)
 {
     switch (evt->event_id)
@@ -102,6 +63,89 @@ esp_err_t client_event_get_handler(esp_http_client_event_handle_t evt)
     }
     return ESP_OK;
 }
+
+// Function to extract the URL from the JSON response
+char *extractURLFromResponse(const char *jsonResponse)
+{
+    const char *responseKey = "\"Response\":\"";
+    const char *responseStart = strstr(jsonResponse, responseKey);
+
+    if (responseStart)
+    {
+        responseStart += strlen(responseKey);
+        const char *responseEnd = strchr(responseStart, '"');
+
+        if (responseEnd)
+        {
+            size_t urlLength = responseEnd - responseStart;
+            char *url = (char *)malloc(urlLength + 1);  // Allocate space for the URL without quotes
+
+            if (url)
+            {
+                strncpy(url, responseStart, urlLength);
+                url[urlLength] = '\0';  // Null-terminate the string
+
+                // If the URL is enclosed in double quotes, remove them
+                if (url[0] == '"' && url[urlLength - 1] == '"')
+                {
+                    // Shift the URL to remove the quotes
+                    memmove(url, url + 1, urlLength - 1);
+                    url[urlLength - 1] = '\0';  // Null-terminate the modified string
+                }
+
+                return url;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+// Your Wi-Fi connection code
+static void wifi_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+{
+
+    switch (event_id)
+    {
+    case WIFI_EVENT_STA_START:
+        printf("WiFi connecting ... \n");
+        break;
+    case WIFI_EVENT_STA_CONNECTED:
+        printf("WiFi connected ... \n");
+        break;
+    case WIFI_EVENT_STA_DISCONNECTED:
+        printf("WiFi lost connection ... \n");
+        break;
+    case IP_EVENT_STA_GOT_IP:
+        printf("WiFi got IP ... \n\n");
+        break;
+    default:
+        break;
+    }
+}
+
+void wifi_connection()
+{
+  
+    esp_netif_init();  
+    esp_event_loop_create_default();
+    esp_netif_create_default_wifi_sta();
+    wifi_init_config_t wifi_initiation = WIFI_INIT_CONFIG_DEFAULT();
+    esp_wifi_init(&wifi_initiation);
+    
+    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL);
+    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL);
+    wifi_config_t wifi_configuration = {
+        .sta = {
+            .ssid = SSID,
+            .password = PASS}};
+    esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_configuration);
+    
+    esp_wifi_start();
+    
+    esp_wifi_connect();
+}
+
 static void client_post_rest_function()
 {
     // Construct the complete URL with the current running version
@@ -135,37 +179,6 @@ static void client_post_rest_function()
         ESP_LOGE(TAG, "Failed to get the running firmware info");
     }
 }
-
-// Function to extract the URL from the JSON response
-char *extractURLFromResponse(const char *jsonResponse)
-{
-    const char *responseKey = "\"Response\":\"";
-    const char *responseStart = strstr(jsonResponse, responseKey);
-
-    if (responseStart)
-    {
-        responseStart += strlen(responseKey);
-        const char *responseEnd = strchr(responseStart, '"');
-
-        if (responseEnd)
-        {
-            size_t urlLength = responseEnd - responseStart;
-            char *url = (char *)malloc(urlLength + 2); // Allocate extra space for the double quotes
-
-            if (url)
-            {
-                url[0] = '"';
-                strncpy(url + 1, responseStart, urlLength);
-                url[urlLength + 1] = '"';
-                url[urlLength + 2] = '\0';
-                return url;
-            }
-        }
-    }
-
-    return NULL;
-}
-
 static esp_err_t validate_image_header(esp_app_desc_t *new_app_info)
 {
     if (new_app_info == NULL)
@@ -191,24 +204,15 @@ static esp_err_t validate_image_header(esp_app_desc_t *new_app_info)
     return ESP_OK;
 }
 
-void ota_task(void *pvParameters)
+void ota_task(const char *otaURL)
 {
-    client_post_rest_function();
-    // Check if the response has been captured and print it
-    if (http_response_data != NULL)
-    {
 
-        // Extract the URL from the JSON response
-        char *extractedURL = extractURLFromResponse(http_response_data);
-
-        if (extractedURL)
-        {
-            printf("Extracted URL: %s\n", extractedURL);
+    printf("OTA URL: %s\n", otaURL);
     esp_err_t ota_finish_err = ESP_OK;
     esp_http_client_config_t config = {
-        .url = extractedURL,
+        .url = otaURL,
         .cert_pem = (const char *)ClientCert_pem_start,
-        .timeout_ms = 5000,
+        .timeout_ms = 20000,
         .keep_alive_enable = true,
     };
 
@@ -264,7 +268,31 @@ void ota_task(void *pvParameters)
 ota_end:
     esp_https_ota_abort(https_ota_handle);
     ESP_LOGE(TAG, "ESP_HTTPS_OTA upgrade failed");
-    vTaskDelete(NULL);
+}
+
+
+void app_main(void)
+{
+    nvs_flash_init();
+    wifi_connection();
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    printf("WIFI was initiated ...........\n\n");
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    printf("Start client:\n\n");
+    client_post_rest_function();
+
+    // Check if the response has been captured and print it
+    if (http_response_data != NULL)
+    {
+
+        // Extract the URL from the JSON response
+        char *extractedURL = extractURLFromResponse(http_response_data);
+
+        if (extractedURL)
+        {
+            printf("Extracted URL: %s\n", extractedURL);
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
+            ota_task(extractedURL);
             free(extractedURL);
         }
 
@@ -272,41 +300,3 @@ ota_end:
     }
 }
 
-void led_task(void *pvParameters)
-{
-    // Initialize the GPIO for the LED
-    gpio_pad_select_gpio(LED_GPIO);
-    gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
-
-    while (1) {
-        // Toggle the LED state
-        gpio_set_level(LED_GPIO, !gpio_get_level(LED_GPIO));
-
-        // Print the state of the LED
-        if (gpio_get_level(LED_GPIO)) {
-            ESP_LOGI(TAG, "LED is Now ON");
-        } else {
-            ESP_LOGI(TAG, "LED is Now OFF");
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(3000)); // 3-second interval
-    }
-}
-
-void app_main(void)
-{
-    nvs_flash_init();
-    wifi_connection();
-
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
-    printf("WIFI was initiated ...........\n\n");
-
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
-    printf("Start client:\n\n");
-
-    // Create and start the OTA task
-    xTaskCreate(ota_task, "ota_task", 4096, NULL, 5, NULL);
-
-    // Create and start the LED task
-    xTaskCreate(led_task, "led_task", 2048, NULL, 5, NULL);
-}

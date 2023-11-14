@@ -3,7 +3,7 @@ const semver = require("semver");
 
 exports.handler = async (event) => {
   try {
-    //console.log(event);
+    console.log(event);
     const versionValid = validateVersionParam(event);
 
     // is rawVersion valid?
@@ -22,9 +22,9 @@ exports.handler = async (event) => {
     console.log(currentVersion);
     const dbResult = await readDataFromDb();
     const needsUpdate = await checkForUpdate(dbResult, currentVersion);
-    
+
     if (needsUpdate) {
-      const url = await getSignedUrl(dbResult);
+      const url = getFirmwareUrl(dbResult);
       // return download url to device
       return response({
         statusCode: 200,
@@ -47,7 +47,7 @@ exports.handler = async (event) => {
       statusCode: 503,
       data: {
         error: "An error occurred. Try again later.",
-        stack: { error }, // So the client can see or trace error. Remove if not required.
+        stack: { error },
       },
     });
   }
@@ -83,14 +83,14 @@ const readDataFromDb = async () => {
 
 /**
  * This checks if an update is required.
- * Checks if the `currentVersion` is greater than the `firmwareVersion` on the database
+ * Checks if the currentVersion is greater than the firmwareVersion on the database
  *
  * @param {StPromiseResult<AWS.DynamoDB.DocumentClient.QueryOutput, AWS.AWSError>ring} result
  * @param {String} currentVersion
  *
  * @returns Boolean
  */
-const checkForUpdate = async (currentVersion) => {
+const checkForUpdate = async (result, currentVersion) => {
   const firmwareVersion = result.Items[0].firmwareVersion;
   // check if device needs update
   const needsUpdate = semver.gt(firmwareVersion, currentVersion);
@@ -99,37 +99,24 @@ const checkForUpdate = async (currentVersion) => {
 };
 
 /**
- * Gets the signed download url from the database result.
+ * Gets the download url from the database result.
  *
  * @param {StPromiseResult<AWS.DynamoDB.DocumentClient.QueryOutput, AWS.AWSError>ring} result
- * @returns Promise<string>
+ * @returns string
  */
- const getSignedUrl = async (result) => {
-  // Create s3 service object
-  const s3 = new AWS.S3();
+const getFirmwareUrl = (result) => {
+  const bucketName = result.Items[0].bucketName;
+  const fileName = result.Items[0].fileName;
 
-  // signed url parameters
-  const bucketDetails = {
-    Bucket: result.Items[0].bucketName,
-    Key: result.Items[0].fileName,
-    Expires: 60 * 5,
-  };
-
-
-  // form pre-signed url from data returned from db
-  const url = await new Promise((resolve, reject) => {
-    s3.getSignedUrl("getObject", bucketDetails, (err, url) => {
-      err ? reject(err) : resolve(url);
-    });
-  });
+  // Construct the URL of the firmware file in the S3 bucket
+  const url = `https://${bucketName}.s3.amazonaws.com/${fileName}`;
 
   return url;
 };
 
-
 /**
- * Checks if the version `rawVersion` is defined and valid.
- * `rawVersion` must be passed as a query parameter and defined under `event.queryStringParameters`
+ * Checks if the version rawVersion is defined and valid.
+ * rawVersion must be passed as a query parameter and defined under event.queryStringParameters
  * @param {AwsEvent} event
  * @returns boolean
  */
@@ -174,9 +161,10 @@ const validateVersionParam = (event) => {
  * @returns Response body
  */
 const response = ({ statusCode, data, header = {} }) => {
-  // Merge default headers with possible optionals headers
+  // Merge default headers with possible optional headers
   const headers = {
     "Access-Control-Allow-Origin": "*",
+    "Content-Type": "application/json", // Specify the content type
     ...header,
   };
   const body = JSON.stringify(data);
