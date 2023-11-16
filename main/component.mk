@@ -3,4 +3,3 @@
 #
 # (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
 COMPONENT_EMBED_TXTFILES := certificate.pem 
-COMPONENT_EMBED_TXTFILES += certificatetinyurl.pem

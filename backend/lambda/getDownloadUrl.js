@@ -1,170 +1,107 @@
 const AWS = require('aws-sdk');
-const semver = require("semver");
+const semver = require('semver');
 
+// AWS DynamoDB DocumentClient instance
+const dynamoDB = new AWS.DynamoDB.DocumentClient();
+
+// Constants for DynamoDB table and device type
+const firmwareTable = process.env.FIRMWARE_TABLE;
+const DEVICE_TYPE = 'esp32';
+
+// Lambda handler function
 exports.handler = async (event) => {
   try {
     console.log(event);
+
+    // Validate the rawVersion parameter
     const versionValid = validateVersionParam(event);
 
-    // is rawVersion valid?
     if (!versionValid) {
       console.log("Failed to Pass Query Parameter");
-
       return response({
         statusCode: 400,
-        data: {
-          error: "Invalid Parameter",
-        },
+        data: { error: "Invalid Parameter" },
       });
     }
 
     const currentVersion = event.queryStringParameters.rawVersion;
     console.log(currentVersion);
+
+    // Read data from DynamoDB
     const dbResult = await readDataFromDb();
-    const needsUpdate = await checkForUpdate(dbResult, currentVersion);
+
+    // Check for a firmware update
+    const needsUpdate = checkForUpdate(dbResult, currentVersion);
 
     if (needsUpdate) {
       const url = getFirmwareUrl(dbResult);
-      // return download url to device
       return response({
         statusCode: 200,
-        data: {
-          Response: url,
-        },
+        data: { Response: url },
       });
     } else {
       return response({
         statusCode: 200,
-        data: {
-          Response: "Device up to date",
-        },
+        data: { Response: "Device up to date" },
       });
     }
   } catch (error) {
     console.log(error);
-
     return response({
       statusCode: 503,
-      data: {
-        error: "An error occurred. Try again later.",
-        stack: { error },
-      },
+      data: { error: "An error occurred. Try again later.", stack: { error } },
     });
   }
 };
 
-/**
- * Read/Query the most recent data from dynamo db.
- *
- * @returns DynamoDB query output
- */
+// Read data from DynamoDB
 const readDataFromDb = async () => {
-  // dynamoDB table
-  const firmwareTable = process.env.FIRMWARE_TABLE;
   const params = {
     TableName: firmwareTable,
     KeyConditionExpression: "#deviceType = :deviceType",
-    ExpressionAttributeNames: {
-      "#deviceType": "deviceType",
-    },
-    ExpressionAttributeValues: {
-      ":deviceType": "esp32",
-    },
+    ExpressionAttributeNames: { "#deviceType": "deviceType" },
+    ExpressionAttributeValues: { ":deviceType": DEVICE_TYPE },
   };
 
-  // Create the DynamoDB service object
-  const ddb = new AWS.DynamoDB.DocumentClient();
-
-  // read most recent data from db
-  const result = await ddb.query(params).promise();
-
+  const result = await dynamoDB.query(params).promise();
   return result;
 };
 
-/**
- * This checks if an update is required.
- * Checks if the currentVersion is greater than the firmwareVersion on the database
- *
- * @param {StPromiseResult<AWS.DynamoDB.DocumentClient.QueryOutput, AWS.AWSError>ring} result
- * @param {String} currentVersion
- *
- * @returns Boolean
- */
-const checkForUpdate = async (result, currentVersion) => {
+// Check if an update is required
+const checkForUpdate = (result, currentVersion) => {
   const firmwareVersion = result.Items[0].firmwareVersion;
-  // check if device needs update
-  const needsUpdate = semver.gt(firmwareVersion, currentVersion);
-
-  return needsUpdate;
+  return semver.gt(firmwareVersion, currentVersion);
 };
 
-/**
- * Gets the download url from the database result.
- *
- * @param {StPromiseResult<AWS.DynamoDB.DocumentClient.QueryOutput, AWS.AWSError>ring} result
- * @returns string
- */
+// Get the download URL from the database result
 const getFirmwareUrl = (result) => {
   const bucketName = result.Items[0].bucketName;
   const fileName = result.Items[0].fileName;
-
-  // Construct the URL of the firmware file in the S3 bucket
   const url = `https://${bucketName}.s3.amazonaws.com/${fileName}`;
-
   return url;
 };
 
-/**
- * Checks if the version rawVersion is defined and valid.
- * rawVersion must be passed as a query parameter and defined under event.queryStringParameters
- * @param {AwsEvent} event
- * @returns boolean
- */
+// Validate the rawVersion parameter
 const validateVersionParam = (event) => {
-  // check if event.queryStringParameters is defined
   const params = event.queryStringParameters;
-  console.log(params);
-  if (params !== undefined || params !== null) {
-    // check if rawVersion is defined
-    if (params.rawVersion !== undefined || params.rawVersion !== null) {
-      const rawVersion = params.rawVersion;
-      console.log(typeof(rawVersion));
-      // Ensure rawVersion is a string
-      if (typeof(rawVersion) === "string") {
-        // version must be in format v0.0.1
-        // v[int].[int].[int]
-        const versionFormat = /^v[0-9].[0-9].[0-9]/g;
 
-        if (versionFormat.test(rawVersion)) {
-          console.log('validated');
-          return true;
-        }
+  if (params && params.rawVersion) {
+    const rawVersion = params.rawVersion;
 
-        return false;
-      }
-
-      return false;
+    if (typeof rawVersion === "string" && /^v[0-9].[0-9].[0-9]/.test(rawVersion)) {
+      console.log('validated');
+      return true;
     }
-
-    return false;
   }
 
   return false;
 };
 
-/**
- * Builds the response object and returns it.
- *
- * @param {Number} statusCode the status code of the response.
- * @param {Object} data the body of the response containing the response data
- * @param {Object} header optional headers to add
- * @returns Response body
- */
+// Build the response object
 const response = ({ statusCode, data, header = {} }) => {
-  // Merge default headers with possible optional headers
   const headers = {
     "Access-Control-Allow-Origin": "*",
-    "Content-Type": "application/json", // Specify the content type
+    "Content-Type": "application/json",
     ...header,
   };
   const body = JSON.stringify(data);

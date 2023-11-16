@@ -16,6 +16,7 @@
     "idf.toolsPathWin": "C:\\Espressif",
     "idf.flashType": "UART",
     "files.associations": {
-        "esp_http_client.h": "c"
+        "esp_http_client.h": "c",
+        "esp_ota_ops.h": "c"
     }
 }

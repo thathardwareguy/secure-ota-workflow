@@ -17,262 +17,41 @@
 #include <esp_event.h>
 #include <esp_system.h>
 #include "sdkconfig.h"
-#include "driver/gpio.h"
-static const char *TAG = "OTA-UPDATE";
-#define LED_GPIO 2 // Replace with the GPIO pin connected to your LED
-
-// Global pointer to store the HTTP response
-char *http_response_data = NULL;
+#include "httpconnect.h"
+#include "otaupdate.h"
+#include "wificonnect.h"
 // Define client certificate
 extern const uint8_t ClientCert_pem_start[] asm("_binary_certificate_pem_start");
 extern const uint8_t ClientCert_pem_end[]   asm("_binary_certificate_pem_end");
-extern const uint8_t ClientCerttinyurl_pem_start[] asm("_binary_certificatetinyurl_pem_start");
-extern const uint8_t ClientCerttinyurl_pem_end[]   asm("_binary_certificatetinyurl_pem_end");
-// Function to handle HTTP event
-esp_err_t client_event_get_handler(esp_http_client_event_handle_t evt)
-{
-    switch (evt->event_id)
-    {
-    case HTTP_EVENT_ON_DATA:
-        printf("Client HTTP_EVENT_ON_DATA: %.*s\n", evt->data_len, (char *)evt->data);
+static const char *TAG = "OTA-UPDATE";
 
-        // Allocate or reallocate memory for the response and copy data
-        if (http_response_data == NULL)
-        {
-            http_response_data = (char *)malloc(evt->data_len + 1);
-            if (http_response_data != NULL)
-            {
-                strncpy(http_response_data, (char *)evt->data, evt->data_len);
-                http_response_data[evt->data_len] = '\0';
-            }
-        }
-        else
-        {
-            // Reallocate memory to accommodate the new data
-            char *new_data = (char *)realloc(http_response_data, strlen(http_response_data) + evt->data_len + 1);
-            if (new_data != NULL)
-            {
-                http_response_data = new_data;
-                strncat(http_response_data, (char *)evt->data, evt->data_len);
-            }
-        }
-        break;
-
-    default:
-        break;
-    }
-    return ESP_OK;
-}
-
-// Function to extract the URL from the JSON response
-char *extractURLFromResponse(const char *jsonResponse)
-{
-    const char *responseKey = "\"Response\":\"";
-    const char *responseStart = strstr(jsonResponse, responseKey);
-
-    if (responseStart)
-    {
-        responseStart += strlen(responseKey);
-        const char *responseEnd = strchr(responseStart, '"');
-
-        if (responseEnd)
-        {
-            size_t urlLength = responseEnd - responseStart;
-            char *url = (char *)malloc(urlLength + 1);  // Allocate space for the URL without quotes
-
-            if (url)
-            {
-                strncpy(url, responseStart, urlLength);
-                url[urlLength] = '\0';  // Null-terminate the string
-
-                // If the URL is enclosed in double quotes, remove them
-                if (url[0] == '"' && url[urlLength - 1] == '"')
-                {
-                    // Shift the URL to remove the quotes
-                    memmove(url, url + 1, urlLength - 1);
-                    url[urlLength - 1] = '\0';  // Null-terminate the modified string
-                }
-
-                return url;
-            }
-        }
-    }
-
-    return NULL;
-}
-
-// Your Wi-Fi connection code
-static void wifi_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
-{
-
-    switch (event_id)
-    {
-    case WIFI_EVENT_STA_START:
-        printf("WiFi connecting ... \n");
-        break;
-    case WIFI_EVENT_STA_CONNECTED:
-        printf("WiFi connected ... \n");
-        break;
-    case WIFI_EVENT_STA_DISCONNECTED:
-        printf("WiFi lost connection ... \n");
-        break;
-    case IP_EVENT_STA_GOT_IP:
-        printf("WiFi got IP ... \n\n");
-        break;
-    default:
-        break;
-    }
-}
-
-void wifi_connection()
-{
-  
-    esp_netif_init();  
-    esp_event_loop_create_default();
-    esp_netif_create_default_wifi_sta();
-    wifi_init_config_t wifi_initiation = WIFI_INIT_CONFIG_DEFAULT();
-    esp_wifi_init(&wifi_initiation);
-    
-    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL);
-    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL);
-    wifi_config_t wifi_configuration = {
-        .sta = {
-            .ssid = SSID,
-            .password = PASS}};
-    esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_configuration);
-    
-    esp_wifi_start();
-    
-    esp_wifi_connect();
-}
-
-static void client_post_rest_function()
-{
-    // Construct the complete URL with the current running version
+static void client_post_rest_function() {
     esp_app_desc_t running_app_info;
-    if (esp_ota_get_partition_description(esp_ota_get_running_partition(), &running_app_info) == ESP_OK)
-    {
+    if (esp_ota_get_partition_description(esp_ota_get_running_partition(), &running_app_info) == ESP_OK) {
         char complete_url[256];
         snprintf(complete_url, sizeof(complete_url), "https://stgquzvr3h.execute-api.us-east-2.amazonaws.com/dev/firmwares?rawVersion=%s", running_app_info.version);
 
-        // Perform an HTTPS GET request
         esp_http_client_config_t config_get = {
             .url = complete_url,
             .method = HTTP_METHOD_GET,
             .cert_pem = (const char *)ClientCert_pem_start,
-            .event_handler = client_event_get_handler};
+            .event_handler = client_event_get_handler
+        };
 
         esp_http_client_handle_t client = esp_http_client_init(&config_get);
         esp_err_t err = esp_http_client_perform(client);
-        if (err == ESP_OK)
-        {
+        if (err == ESP_OK) {
             ESP_LOGI(TAG, "HTTPS GET request successful");
-        }
-        else
-        {
+        } else {
             ESP_LOGE(TAG, "HTTPS GET request failed");
         }
         esp_http_client_cleanup(client);
-    }
-    else
-    {
+    } else {
         ESP_LOGE(TAG, "Failed to get the running firmware info");
     }
 }
-static esp_err_t validate_image_header(esp_app_desc_t *new_app_info)
-{
-    if (new_app_info == NULL)
-    {
-        return ESP_ERR_INVALID_ARG;
-    }
 
-    const esp_partition_t *running = esp_ota_get_running_partition();
-    esp_app_desc_t running_app_info;
-    if (esp_ota_get_partition_description(running, &running_app_info) == ESP_OK)
-    {
-        ESP_LOGI(TAG, "Running firmware version: %s", running_app_info.version);
-    }
-
-#ifndef CONFIG_EXAMPLE_SKIP_VERSION_CHECK
-    if (memcmp(new_app_info->version, running_app_info.version, sizeof(new_app_info->version)) == 0)
-    {
-        ESP_LOGW(TAG, "Current running version is the same as the new one. OTA update is not required.");
-        return ESP_FAIL;
-    }
-#endif
-
-    return ESP_OK;
-}
-
-void ota_task(const char *otaURL)
-{
-
-    printf("OTA URL: %s\n", otaURL);
-    esp_err_t ota_finish_err = ESP_OK;
-    esp_http_client_config_t config = {
-        .url = otaURL,
-        .cert_pem = (const char *)ClientCert_pem_start,
-        .timeout_ms = 20000,
-        .keep_alive_enable = true,
-    };
-
-    esp_https_ota_handle_t https_ota_handle = NULL;
-    esp_https_ota_config_t ota_config = {
-        .http_config = &config,
-    };
-   
-    esp_err_t err = esp_https_ota_begin(&ota_config, &https_ota_handle);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "ESP HTTPS OTA Begin failed");
-        vTaskDelete(NULL);
-    }
-
-    esp_app_desc_t app_desc;
-    err = esp_https_ota_get_img_desc(https_ota_handle, &app_desc);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "esp_https_ota_read_img_desc failed");
-        goto ota_end;
-    }
-    err = validate_image_header(&app_desc);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Image header verification failed");
-        goto ota_end;
-    }
-
-    while (1) {
-        err = esp_https_ota_perform(https_ota_handle);
-        if (err != ESP_ERR_HTTPS_OTA_IN_PROGRESS) {
-            break;
-        }
-        ESP_LOGD(TAG, "Image bytes read: %d", esp_https_ota_get_image_len_read(https_ota_handle));
-    }
-
-    if (esp_https_ota_is_complete_data_received(https_ota_handle) != true) {
-        // The OTA image was not completely received, handle this situation as needed.
-        ESP_LOGE(TAG, "Complete data was not received.");
-    } else {
-        ota_finish_err = esp_https_ota_finish(https_ota_handle);
-        if ((err == ESP_OK) && (ota_finish_err == ESP_OK)) {
-            ESP_LOGI(TAG, "ESP_HTTPS_OTA upgrade successful. Rebooting ...");
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            esp_restart();
-        } else {
-            if (ota_finish_err == ESP_ERR_OTA_VALIDATE_FAILED) {
-                ESP_LOGE(TAG, "Image validation failed, image is corrupted");
-            }
-            ESP_LOGE(TAG, "ESP_HTTPS_OTA upgrade failed 0x%x", ota_finish_err);
-            vTaskDelete(NULL);
-        }
-    }
-
-ota_end:
-    esp_https_ota_abort(https_ota_handle);
-    ESP_LOGE(TAG, "ESP_HTTPS_OTA upgrade failed");
-}
-
-
-void app_main(void)
-{
+void app_main(void) {
     nvs_flash_init();
     wifi_connection();
     vTaskDelay(2000 / portTICK_PERIOD_MS);
@@ -281,15 +60,10 @@ void app_main(void)
     printf("Start client:\n\n");
     client_post_rest_function();
 
-    // Check if the response has been captured and print it
-    if (http_response_data != NULL)
-    {
-
-        // Extract the URL from the JSON response
+    if (http_response_data != NULL) {
         char *extractedURL = extractURLFromResponse(http_response_data);
 
-        if (extractedURL)
-        {
+        if (extractedURL) {
             printf("Extracted URL: %s\n", extractedURL);
             vTaskDelay(2000 / portTICK_PERIOD_MS);
             ota_task(extractedURL);
@@ -299,4 +73,3 @@ void app_main(void)
         free(http_response_data);
     }
 }
-
