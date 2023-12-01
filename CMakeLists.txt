@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
-
+set(EXTRA_COMPONENT_DIRS $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 # Use execute_process command to get version information from Git
 execute_process(
     COMMAND git describe --tags
@@ -28,8 +29,7 @@ set(BUILD_TAG ${BUILD_TAG} PARENT_SCOPE)
 message("Build tag: ${BUILD_TAG}")
 
 # Rest of your CMake configuration
-set(EXTRA_COMPONENT_DIRS $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
-include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+
 set(PROJECT_VER ${BUILD_TAG})
 string(REPLACE "." "_" FILE_VER ${BUILD_TAG})
 set(FILE_NAME "firmware_esp32_${FILE_VER}")
