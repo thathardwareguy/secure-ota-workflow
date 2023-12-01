@@ -1,5 +1,5 @@
 // otaupdate.c
-#include "otaupdate.h"
+#include "otaUpdate.h"
 #include "esp_https_ota.h"
 #include "credentials.h"
 #include "esp_ota_ops.h"

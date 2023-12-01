@@ -1,5 +1,5 @@
 // wificonnect.c
-#include "wificonnect.h"
+#include "wifiConnect.h"
 #include "esp_event.h"
 #include "esp_system.h"
 #include "esp_netif.h"

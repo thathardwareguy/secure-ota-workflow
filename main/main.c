@@ -17,9 +17,9 @@
 #include <esp_event.h>
 #include <esp_system.h>
 #include "sdkconfig.h"
-#include "httpconnect.h"
-#include "otaupdate.h"
-#include "wificonnect.h"
+#include "httpConnect.h"
+#include "otaUpdate.h"
+#include "wifiConnect.h"
 // Define client certificate
 extern const uint8_t ClientCert_pem_start[] asm("_binary_certificate_pem_start");
 extern const uint8_t ClientCert_pem_end[]   asm("_binary_certificate_pem_end");
