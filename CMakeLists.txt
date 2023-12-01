@@ -1,11 +1,37 @@
-# For more information about build system see
-# https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html
-# The following five lines of boilerplate have to be in your project's
-# CMakeLists in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.5)
+
+# Use execute_process command to get version information from Git
+execute_process(
+    COMMAND git describe --tags
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+
+# Check if Git command was successful
+if(NOT GIT_VERSION)
+    # Set default values if Git is not available or command failed
+    set(BUILD_TAG "default")
+    set(BUILD_INFO "")
+    message("Git command failed: ${GIT_ERROR}")
+    return()
+endif()
+
+# Parse the version information using string operations
+string(REPLACE "-" " " VERSION_LIST ${GIT_VERSION})
+list(GET VERSION_LIST 0 BUILD_TAG)
+
+# Export variables for use in the project
+set(BUILD_TAG ${BUILD_TAG} PARENT_SCOPE)
+
+# Print the version information
+message("Build tag: ${BUILD_TAG}")
+
+# Rest of your CMake configuration
 set(EXTRA_COMPONENT_DIRS $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-set(PROJECT_VER "v1.5.1")
-set(FILE_VER "v1_5_1")
+set(PROJECT_VER ${BUILD_TAG})
+string(REPLACE "." "_" FILE_VER ${BUILD_TAG})
 set(FILE_NAME "firmware_esp32_${FILE_VER}")
 project(${FILE_NAME})
