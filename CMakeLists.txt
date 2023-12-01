@@ -18,7 +18,6 @@ if(NOT GIT_VERSION)
     return()
 endif()
 
-# Parse the version information using string operations
 string(REPLACE "-" " " VERSION_LIST ${GIT_VERSION})
 list(GET VERSION_LIST 0 BUILD_TAG)
 
