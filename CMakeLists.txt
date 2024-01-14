@@ -22,9 +22,6 @@ endif()
 string(REPLACE "-" " " VERSION_LIST ${GIT_VERSION})
 list(GET VERSION_LIST 0 BUILD_TAG)
 
-# Export variables for use in the project
-set(BUILD_TAG ${BUILD_TAG} PARENT_SCOPE)
-
 # Print the version information
 message("Build tag: ${BUILD_TAG}")
 
