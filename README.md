@@ -31,11 +31,11 @@ Blog post with details: https://embeddedartistry.com/blog/2024/01/15/exploring-s
 * For the first time, create an application in your org in Serverless portal:
     * `serverless`
 
-	![Serverless Application](./images/serverless provider settings.PNG)
+	![Serverless Application](./images/serverless-provider-settings.PNG)
 * For subsequent deployments:
     * `serverless deploy`
 * Lambda Functions Deployment Output
-    ![Serverless Deploy Output](./images/aws serverless output.PNG)
+    ![Serverless Deploy Output](./images/aws-serverless-output.PNG)
 * Copy and save the endpoint 
 
 
