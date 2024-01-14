@@ -30,26 +30,12 @@ Blog post with details: https://embeddedartistry.com/blog/2024/01/15/exploring-s
     * `cd backend`
 * For the first time, create an application in your org in Serverless portal:
     * `serverless`
-![Serverless Application](./images/serverless-dashboard.PNG)
+
+	![Serverless Application](./images/serverless provider settings.PNG)
 * For subsequent deployments:
     * `serverless deploy`
 * Lambda Functions Deployment Output
-![Serverless Deploy Output](./images/serverless-deploy-output.PNG)
+    ![Serverless Deploy Output](./images/aws serverless output.PNG)
 * Copy and save the endpoint 
 
 
-### Upload firmware with PlatfomIO
-
-I recommend installing the Visual Studio Code (VSCode) IDE and the PlatformIO plugin to get started using it. Just follow the step on the link below: 
-
-https://platformio.org/platformio-ide
-
-To deploy to the board you can use the “Build” and “Upload” buttons on PlatformIO Toolbar.
-
-
-### References
-
-*  https://dzone.com/articles/how-to-approach-ota-updates-for-iot
-*  https://github.com/alvarowolfx/gcloud-ota-arduino-update 
-*  https://docs.aws.amazon.com 
-*  https://docs.platformio.org/en/latest/integration/ci/github-actions.html 
